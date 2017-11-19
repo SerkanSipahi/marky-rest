@@ -7,22 +7,26 @@ import (
 	"github.com/serkansipahi/corm"
 	"github.com/serkansipahi/marky"
 	"net/http"
+	"strings"
 )
 
-type Markdown struct {
+// Empty struct
+var EmptyStruct = map[string]string{}
+
+// MarkdownHtmlDoc is needed for storing documents
+// in couchDB and for json http responses
+type MarkdownHtmlDoc struct {
 	Id       string `json:"_id,omitempty"`
 	Rev      string `json:"_rev,omitempty"`
-	Type     string `json:"type"`
-	Markdown string `json:"Markdown"`
-}
-
-type DocId struct {
-	id string
+	Type     string `json:"type,omitempty"`
+	Html     string `json:"html,omitempty"`
+	Markdown string `json:"markdown,omitempty"`
+	Error    string `json:"error,omitempty"`
 }
 
 func main() {
 
-	// create couchdb instance
+	// create couchDB instance
 	dbName := "markdown"
 	ctx := context.TODO()
 	db, err := corm.New(ctx, corm.Config{
@@ -36,32 +40,68 @@ func main() {
 	m := martini.Classic()
 	m.Use(render.Renderer())
 
-	m.Post("/markdown/save", func(res render.Render, req *http.Request) {
-		if markdown := req.Header.Get("markdown"); markdown != "" {
+	m.Post("/markdown/save", func(res render.Render, req *http.Request) error {
 
-			markdown := marky.NewMarkdown(markdown)
-			html := markdown.Compile()
-			if html == "" {
-				res.JSON(200, map[string]string{"id": ""})
-			}
-
-			docId, _, err := db.Save(ctx, Markdown{
-				Markdown: markdown.Compile(),
-			})
-			if err != nil {
-				panic(err)
-			}
-			res.JSON(200, map[string]string{"id": docId})
+		// response with an empty json when no markdown received
+		markdownTemplate := req.Header.Get("markdown")
+		if markdownTemplate == "" {
+			res.JSON(200, EmptyStruct)
+			return nil
 		}
+
+		// render markdown markup
+		markdown := marky.NewMarkdown(markdownTemplate)
+		markdownHtml := markdown.Compile()
+
+		// save rendered html markdown markup
+		docId, _, err := db.Save(ctx, MarkdownHtmlDoc{
+			Html:     markdownHtml,
+			Markdown: markdownTemplate,
+		})
+
+		// something gone wrong
+		if err != nil {
+			res.JSON(200, MarkdownHtmlDoc{
+				Error: "Something gone wrong while saving html document!",
+			})
+			return nil
+		}
+
+		// fine, return success response
+		res.JSON(200, MarkdownHtmlDoc{
+			Id:   docId,
+			Html: markdownHtml,
+		})
+		return nil
 
 	})
 
-	m.Get("/markdown/get/:docId", func(res render.Render, params martini.Params) {
+	m.Get("/markdown/get/:docId", func(res render.Render, params martini.Params) error {
 
 		docId := params["docId"]
-		var markdown Markdown
+
+		// something gone wrong
+		docId = strings.Trim(docId, " ")
+		if docId == "" {
+			res.JSON(200, MarkdownHtmlDoc{
+				Error: "No docId received!",
+			})
+			return nil
+		}
+
+		// read document
+		var markdown MarkdownHtmlDoc
 		_, err = db.Read(ctx, docId, &markdown)
+		if err != nil {
+			res.JSON(200, MarkdownHtmlDoc{
+				Error: "docId: '" + docId + "' not found!",
+			})
+			return nil
+		}
+
+		// fine, return success response
 		res.JSON(200, markdown)
+		return nil
 	})
 
 	m.Run()
