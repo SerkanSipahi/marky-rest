@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="stylesheet" href="http://netdna.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.6.6/angular.min.js"></script>
+    <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.6.6/angular-sanitize.js"></script>
+    <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+    <script>
+
+        let localTempStore = [];
+        let postApp = angular.module('postApp', ['ngSanitize']);
+        postApp.controller('postController', function($scope) {
+
+            $scope.markup = {};
+            $scope.onKeyUp = _ => {
+                $.post("markdown/preview", $scope.markup).done(data =>{
+                    $scope.markdownHTML = data.html;
+                    $scope.$apply();
+                });
+            };
+
+            $scope.submitForm = _ => {
+                $.post("markdown/save", $scope.markup).done(data =>  {
+                    localTempStore.push(data);
+                    $scope.records = localTempStore;
+                    $scope.$apply();
+                });
+            };
+
+            $scope.onClickRecord = ({target}) => {
+                let id = $(target).data('id');
+                $.get(`markdown/get/${id}`).done(data => {
+                    $scope.stringfiedRecord = data;
+                    $scope.$apply();
+                });
+            };
+
+        });
+    </script>
+</head>
+<body ng-app="postApp" ng-controller="postController">
+    <div class="container">
+        <div class="col-sm-8 col-sm-offset-2">
+            <div class="page-header"><h1>Markdown converter to HTML</h1></div>
+            <!-- FORM -->
+            <form name="userForm" ng-submit="submitForm()">
+
+                <div ng-show="records">
+                    <div class="page-header"><h5>Records (please click for read docId)</h5></div>
+                    <div ng-repeat="record in records">
+                        <div style="cursor:pointer" ng-click="onClickRecord($event)" data-id="{{`{{record._id}}`}}">Read docId: {{`{{record._id}}`}}</div>
+                    </div>
+                    <div class="page-header"></div>
+                </div>
+
+                <div ng-show="stringfiedRecord">
+                    {{`{{stringfiedRecord}}`}}
+                    <div class="page-header"></div>
+                </div>
+
+                <div class="form-group">
+                    <label>Markdown</label>
+                    <textarea rows="10" name="markdown" ng-keyup="onKeyUp()" class="form-control" ng-model="markup.markdown"></textarea>
+                </div>
+
+                <div ng-show="markdownHTML">
+                    <div class="page-header"><h3>Preview rendered</h3></div>
+                    <div ng-bind-html="markdownHTML"></div>
+                    <div class="page-header"></div>
+                </div>
+
+                <div ng-show="markdownHTML">
+                    <div class="page-header"><h3>Preview raw</h3></div>
+                    <div>{{`{{markdownHTML}}`}}</div>
+                    <div class="page-header"></div>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Save</button>
+            </form>
+        </div>
+    </div>
+</body>
