@@ -24,6 +24,18 @@ type MarkdownHtmlDoc struct {
 	Error    string `json:"error,omitempty"`
 }
 
+func RenderMarkdown(markdownTemplate string) string {
+	if markdownTemplate == "" {
+		return markdownTemplate
+	}
+
+	// render markdown markup
+	markdown := marky.NewMarkdown(markdownTemplate)
+	markdownHtml := markdown.Compile()
+
+	return markdownHtml
+}
+
 func main() {
 
 	// create couchDB instance
@@ -38,20 +50,36 @@ func main() {
 	}
 
 	m := martini.Classic()
-	m.Use(render.Renderer())
+	m.Use(render.Renderer(render.Options{
+		Extensions: []string{".html"},
+		Directory:  "./",
+	}))
+
+	m.Post("/markdown/preview", func(res render.Render, req *http.Request) error {
+
+		// response with an empty json when no markdown received
+		markdownHtml := RenderMarkdown(req.Header.Get("markdown"))
+		if markdownHtml == "" {
+			res.JSON(200, EmptyStruct)
+			return nil
+		}
+
+		res.JSON(200, MarkdownHtmlDoc{
+			Html: markdownHtml,
+		})
+
+		return nil
+	})
 
 	m.Post("/markdown/save", func(res render.Render, req *http.Request) error {
 
 		// response with an empty json when no markdown received
 		markdownTemplate := req.Header.Get("markdown")
-		if markdownTemplate == "" {
+		markdownHtml := RenderMarkdown(markdownTemplate)
+		if markdownHtml == "" {
 			res.JSON(200, EmptyStruct)
 			return nil
 		}
-
-		// render markdown markup
-		markdown := marky.NewMarkdown(markdownTemplate)
-		markdownHtml := markdown.Compile()
 
 		// save rendered html markdown markup
 		docId, _, err := db.Save(ctx, MarkdownHtmlDoc{
