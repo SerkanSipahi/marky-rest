@@ -5,6 +5,14 @@
     <script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.6.6/angular.min.js"></script>
     <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.6.6/angular-sanitize.js"></script>
     <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+    <style>
+        .link {
+            color: #3079ed;
+            text-decoration:underline;
+            font-weight:bold;
+            cursor:pointer
+        }
+    </style>
     <script>
 
         let localTempStore = [];
@@ -19,10 +27,15 @@
                 });
             };
 
+            $scope.clearTextarea = _ => {
+                $('textarea[name="markdown"]').val("")
+            };
+
             $scope.submitForm = _ => {
                 $.post("markdown/save", $scope.markup).done(data =>  {
                     localTempStore.push(data);
                     $scope.records = localTempStore;
+                    $('textarea[name="markdown"]').val("")
                     $scope.$apply();
                 });
             };
@@ -48,7 +61,7 @@
                 <div ng-show="records">
                     <div class="page-header"><h5>Records (please click for read docId)</h5></div>
                     <div ng-repeat="record in records">
-                        <div style="cursor:pointer" ng-click="onClickRecord($event)" data-id="{{`{{record._id}}`}}">Read docId: {{`{{record._id}}`}}</div>
+                        <div class="link" ng-click="onClickRecord($event)" data-id="{{`{{record._id}}`}}">Read docId: {{`{{record._id}}`}}</div>
                     </div>
                     <div class="page-header"></div>
                 </div>
@@ -59,8 +72,8 @@
                 </div>
 
                 <div class="form-group">
-                    <label>Markdown</label>
-                    <textarea rows="10" name="markdown" ng-keyup="onKeyUp()" class="form-control" ng-model="markup.markdown"></textarea>
+                    <label>Markdown <span ng-click="clearTextarea()" class="link">(Clear)</span></label>
+                    <textarea rows="5" name="markdown" ng-keyup="onKeyUp()" class="form-control" ng-model="markup.markdown"></textarea>
                 </div>
 
                 <div ng-show="markdownHTML">
