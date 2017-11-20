@@ -55,30 +55,48 @@ func main() {
 		Directory:  "./",
 	}))
 
-	m.Post("/markdown/preview", func(res render.Render, req *http.Request) error {
+	m.Get("/", func(res render.Render, req *http.Request) error {
+		res.HTML(200, "index", nil)
+		return nil
+	})
+
+	m.Post("/markdown/preview", func(res render.Render, req *http.Request) {
+
+		if req.ParseForm() != nil {
+			res.JSON(200, MarkdownHtmlDoc{
+				Error: "Corrupt form data",
+			})
+			return
+		}
 
 		// response with an empty json when no markdown received
-		markdownHtml := RenderMarkdown(req.Header.Get("markdown"))
+		markdownTemplate := req.Form.Get("markdown")
+		markdownHtml := RenderMarkdown(markdownTemplate)
 		if markdownHtml == "" {
 			res.JSON(200, EmptyStruct)
-			return nil
+			return
 		}
 
 		res.JSON(200, MarkdownHtmlDoc{
 			Html: markdownHtml,
 		})
-
-		return nil
 	})
 
-	m.Post("/markdown/save", func(res render.Render, req *http.Request) error {
+	m.Post("/markdown/save", func(res render.Render, req *http.Request) {
 
-		// response with an empty json when no markdown received
-		markdownTemplate := req.Header.Get("markdown")
+		if req.ParseForm() != nil {
+			res.JSON(200, MarkdownHtmlDoc{
+				Error: "Corrupt form data",
+			})
+			return
+		}
+
+		markdownTemplate := req.Form.Get("markdown")
 		markdownHtml := RenderMarkdown(markdownTemplate)
+
 		if markdownHtml == "" {
 			res.JSON(200, EmptyStruct)
-			return nil
+			return
 		}
 
 		// save rendered html markdown markup
@@ -92,7 +110,7 @@ func main() {
 			res.JSON(200, MarkdownHtmlDoc{
 				Error: "Something gone wrong while saving html document!",
 			})
-			return nil
+			return
 		}
 
 		// fine, return success response
@@ -100,11 +118,9 @@ func main() {
 			Id:   docId,
 			Html: markdownHtml,
 		})
-		return nil
-
 	})
 
-	m.Get("/markdown/get/:docId", func(res render.Render, params martini.Params) error {
+	m.Get("/markdown/get/:docId", func(res render.Render, params martini.Params) {
 
 		docId := params["docId"]
 
@@ -114,7 +130,7 @@ func main() {
 			res.JSON(200, MarkdownHtmlDoc{
 				Error: "No docId received!",
 			})
-			return nil
+			return
 		}
 
 		// read document
@@ -124,12 +140,11 @@ func main() {
 			res.JSON(200, MarkdownHtmlDoc{
 				Error: "docId: '" + docId + "' not found!",
 			})
-			return nil
+			return
 		}
 
 		// fine, return success response
 		res.JSON(200, markdown)
-		return nil
 	})
 
 	m.Run()
