@@ -8,6 +8,7 @@
 * read record
 * preview editing in frontend
 * simple angular app
+* xss (url) prevent
 
 ### Markdown Features
 * header, paragraph, emphasized, strong and link
